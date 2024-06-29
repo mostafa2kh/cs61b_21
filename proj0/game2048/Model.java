@@ -1,5 +1,6 @@
 package game2048;
 
+import javax.management.remote.JMXServerErrorException;
 import java.util.Formatter;
 import java.util.Observable;
 
@@ -106,6 +107,10 @@ public class Model extends Observable {
      *    value, then the leading two tiles in the direction of motion merge,
      *    and the trailing tile does not.
      * */
+    public Integer get_val(Tile t){
+        if(t==null)return 0;
+        else return t.value();
+    }
     public boolean tilt(Side side) {
         boolean changed;
         changed = false;
@@ -113,7 +118,39 @@ public class Model extends Observable {
         // TODO: Modify this.board (and perhaps this.score) to account
         // for the tilt to the Side SIDE. If the board changed, set the
         // changed local variable to true.
+        board.setViewingPerspective(side);
+        for (int col = 0; col < board.size(); col++) {
+            int mx_row = board.size() - 1;
+            int mx_val = get_val(board.tile(col, mx_row));
 
+            for (int row = board.size() - 2; row >= 0; row--) {
+                Tile t = board.tile(col, row);
+                if (t == null) continue;
+
+                if (mx_val == 0) {
+                    // Move the current tile to the mx_row position
+                    board.move(col, mx_row, t);
+                    changed = true;
+                    mx_val = t.value();
+                } else if (mx_val == t.value()) {
+                    // Merge the current tile with the mx_row position
+                    board.move(col, mx_row, t);
+                    changed = true;
+                    mx_val = 2 * t.value();
+                    score += mx_val;
+                    mx_row--;
+                    mx_val = 0;
+                } else {
+                    mx_row--;
+                    if (mx_row != row) {
+                        board.move(col, mx_row, t);
+                        changed = true;
+                    }
+                    mx_val = t.value();
+                }
+            }
+        }
+        board.setViewingPerspective(Side.NORTH);
         checkGameOver();
         if (changed) {
             setChanged();
@@ -138,6 +175,13 @@ public class Model extends Observable {
      * */
     public static boolean emptySpaceExists(Board b) {
         // TODO: Fill in this function.
+        for(int i=0;i<b.size();i++){
+            for(int j=0;j<b.size();j++){
+                if(b.tile(i,j) == null ){
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -148,6 +192,13 @@ public class Model extends Observable {
      */
     public static boolean maxTileExists(Board b) {
         // TODO: Fill in this function.
+        for(int i=0;i<b.size();i++){
+            for(int j=0;j<b.size();j++){
+                if( b.tile(i,j)!=null && b.tile(i,j).value()==MAX_PIECE ){
+                    return true;
+                }
+            }
+        }
         return false;
     }
 
@@ -157,8 +208,33 @@ public class Model extends Observable {
      * 1. There is at least one empty space on the board.
      * 2. There are two adjacent tiles with the same value.
      */
-    public static boolean atLeastOneMoveExists(Board b) {
+    public static boolean is_valid(Board b,int row, int col) {
+        // Check if the row and column are valid or not.
+        return row >= 0 && row < b.size() && col >= 0 && col < b.size() && b.tile(row,col)!=null;
+    }
+    public
+    static boolean atLeastOneMoveExists(Board b) {
         // TODO: Fill in this function.
+
+        if (emptySpaceExists(b)) {
+            return true;
+        }
+        int[] dx = {-1, 1, 0, 0};
+        int[] dy = {0, 0, -1, 1};
+        for (int i = 0; i <b.size(); i++) {
+            for (int j = 0; j < b.size(); j++) {
+                if (is_valid(b, i, j)) {
+                    for (int k = 0; k < 4; k++) {
+                        int adjRow = i + dx[k];
+                        int adjCol = j + dy[k];
+                        if (is_valid(b, adjRow, adjCol) &&
+                                b.tile(i, j).value() == b.tile(adjRow, adjCol).value()) {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
         return false;
     }
 
